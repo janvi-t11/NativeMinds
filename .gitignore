@@ -1,0 +1,18 @@
+# Flutter
+app/nativeminds/.dart_tool/
+app/nativeminds/.flutter-plugins
+app/nativeminds/.flutter-plugins-dependencies
+app/nativeminds/build/
+app/nativeminds/.packages
+app/nativeminds/pubspec.lock
+
+# Python
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/venv/
+backend/.venv/
+
+# General
+.DS_Store
+*.log
