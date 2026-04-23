@@ -1,66 +1,54 @@
-<<<<<<< HEAD
 # Flutter
-app/nativeminds/.dart_tool/
-app/nativeminds/.flutter-plugins
-app/nativeminds/.flutter-plugins-dependencies
-app/nativeminds/build/
-app/nativeminds/.packages
-app/nativeminds/pubspec.lock
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/pubspec.lock
+**/*.g.dart
+**/*.freezed.dart
+
+# Android
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
+# iOS / macOS
+**/ios/Pods/
+**/macos/Pods/
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
 
 # Python
-backend/__pycache__/
-backend/*.pyc
-backend/.env
-backend/venv/
-backend/.venv/
-
-# General
-.DS_Store
-*.log
-=======
-# Miscellaneous
-*.class
-*.log
+__pycache__/
 *.pyc
-*.swp
+*.pyo
+*.pyd
+.env
+venv/
+.venv/
+*.egg-info/
+
+# Secrets & keys
+*.pem
+*.key
+.env
+.env.*
+ngrok.yml
+ngrok.yaml
+
+# OS
 .DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+Thumbs.db
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
+# IDE
 .idea/
+.vscode/
+*.iml
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Chat logs
+q-dev-chat-*.md
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
->>>>>>> 928f7e701e6fb1cc35ce8e8a71742045e81be3f6
+# Misc
+Your paragraph text.png

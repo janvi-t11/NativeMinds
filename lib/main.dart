@@ -22,7 +22,7 @@ const Color kBackground   = Color(0xFFF4F7FA);
 
 void main() => runApp(const NativeMindsApp());
 
-const String backendUrl = 'http://10.229.77.33:8000';
+const String backendUrl = 'https://ambiguity-revival-green.ngrok-free.dev';
 
 
 

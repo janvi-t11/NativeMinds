@@ -8,6 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 const Color kRegalBlue    = Color(0xFF1A3A5C);
@@ -20,9 +21,13 @@ const Color kWoodsmoke    = Color(0xFF1A1A1A);
 const Color kWhite        = Color(0xFFFFFFFF);
 const Color kBackground   = Color(0xFFF4F7FA);
 
-void main() => runApp(const NativeMindsApp());
+void main() {
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  runApp(const NativeMindsApp());
+}
 
-const String backendUrl = 'http://10.229.77.33:8000';
+const String backendUrl = 'http://192.168.194.116:8000';
 
 
 
@@ -222,6 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    FlutterNativeSplash.remove();
     _loadProfiles();
   }
 
@@ -288,13 +294,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 TextField(controller: parentNameController, decoration: const InputDecoration(labelText: 'Parent Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.family_restroom))),
                 const SizedBox(height: 12),
-                TextField(controller: parentPhoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Parent Phone', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone))),
+                TextField(
+                  controller: parentPhoneController,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  decoration: const InputDecoration(
+                    labelText: 'Parent Phone',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                    prefixText: '+91 ',
+                    counterText: '',
+                    hintText: '10-digit mobile number',
+                  ),
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
                       if (nameController.text.trim().isEmpty) return;
+                      final phone = parentPhoneController.text.trim();
+                      if (phone.isNotEmpty && phone.length != 10) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter a valid 10-digit phone number')),
+                        );
+                        return;
+                      }
                       await DBHelper.saveProfile(nameController.text.trim(), selectedLanguage, selectedGrade, parentNameController.text.trim(), parentPhoneController.text.trim(), selectedAvatar);
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -568,9 +593,6 @@ class _TutorScreenState extends State<TutorScreen> {
   late String _selectedLanguage;
   String _selectedSubject = 'math';
   late int _selectedGrade;
-  String _lessonOfDay = '';
-  bool _loadingLesson = false;
-  bool _lessonExpanded = false;
   int _currentStreak = 0;
   String _selectedDifficulty = 'medium';
 
@@ -598,21 +620,36 @@ class _TutorScreenState extends State<TutorScreen> {
   }
 
   Future<void> _fetchLessonOfDay() async {
-    setState(() => _loadingLesson = true);
+    await Future.delayed(const Duration(seconds: 1));
     try {
       final response = await http.post(
         Uri.parse('$backendUrl/lesson-of-day'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'question': 'lesson of the day', 'language': _selectedLanguage, 'subject': _selectedSubject, 'grade': _selectedGrade}),
-      );
+      ).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        setState(() => _lessonOfDay = data['lesson']);
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(children: [
+                Text('📚 ', style: TextStyle(fontSize: 20)),
+                Text('Lesson of the Day', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+              ]),
+              content: Text(data['lesson'], style: const TextStyle(fontSize: 14, height: 1.5)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Start Learning! 🚀', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
       }
-    } catch (_) {
-    } finally {
-      setState(() => _loadingLesson = false);
-    }
+    } catch (_) {}
   }
 
   Future<void> _askWithImage(ImageSource source) async {
@@ -1039,49 +1076,6 @@ class _TutorScreenState extends State<TutorScreen> {
                   ),
                 ]),
 
-                // lesson banner
-                if (_loadingLesson) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFFFB300))),
-                    child: const Row(children: [
-                      SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFFB300))),
-                      SizedBox(width: 8),
-                      Text('Loading lesson...', style: TextStyle(fontSize: 12, color: Color(0xFFFFB300))),
-                    ]),
-                  ),
-                ] else if (_lessonOfDay.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => setState(() => _lessonExpanded = !_lessonExpanded),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFFFB300))),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(children: [
-                          const Text('📚', style: TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          const Expanded(child: Text('Lesson of the Day', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE65100), fontSize: 13))),
-                          Icon(_lessonExpanded ? Icons.expand_less : Icons.expand_more, color: const Color(0xFFE65100), size: 18),
-                        ]),
-                        if (_lessonExpanded) ...[
-                          const SizedBox(height: 6),
-                          Text(_lessonOfDay, style: const TextStyle(fontSize: 12, height: 1.4)),
-                          const SizedBox(height: 4),
-                          GestureDetector(
-                            onTap: () => _speak(_lessonOfDay),
-                            child: Row(children: [
-                              Icon(_speaking ? Icons.stop_circle : Icons.volume_up, size: 14, color: const Color(0xFFE65100)),
-                              const SizedBox(width: 4),
-                              const Text('Listen', style: TextStyle(fontSize: 11, color: Color(0xFFE65100))),
-                            ]),
-                          ),
-                        ],
-                      ]),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 8),
 
                 // row 3: question input + mic + camera
@@ -1409,9 +1403,25 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
 
   List<Map<String, String>> _parseFlashcards(String raw) {
     final cards = <Map<String, String>>[];
-    final blocks = RegExp(r'FRONT:\s*(.+?)\nBACK:\s*(.+?)(?=\nFRONT:|$)', dotAll: true).allMatches(raw);
-    for (final b in blocks) {
-      cards.add({'front': b.group(1)!.trim(), 'back': b.group(2)!.trim()});
+    final normalized = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final lines = normalized.split('\n');
+    String? front;
+    final backLines = <String>[];
+    for (final line in lines) {
+      if (line.startsWith('FRONT:')) {
+        if (front != null && backLines.isNotEmpty) {
+          cards.add({'front': front, 'back': backLines.join(' ').trim()});
+          backLines.clear();
+        }
+        front = line.replaceFirst('FRONT:', '').trim();
+      } else if (line.startsWith('BACK:')) {
+        backLines.add(line.replaceFirst('BACK:', '').trim());
+      } else if (front != null && line.trim().isNotEmpty && !line.startsWith('FRONT:')) {
+        backLines.add(line.trim());
+      }
+    }
+    if (front != null && backLines.isNotEmpty) {
+      cards.add({'front': front, 'back': backLines.join(' ').trim()});
     }
     return cards;
   }
@@ -1422,14 +1432,27 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       final response = await http.post(
         Uri.parse('$backendUrl/flashcards'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'question': _selectedSubject, 'language': widget.profile['language'], 'subject': _selectedSubject, 'grade': widget.profile['grade']}),
-      );
+        body: jsonEncode({
+          'question': _selectedSubject,
+          'language': widget.profile['language'],
+          'subject': _selectedSubject,
+          'grade': widget.profile['grade'],
+          'history': [],
+        }),
+      ).timeout(const Duration(seconds: 120));
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        setState(() => _cards = _parseFlashcards(data['flashcards']));
+        final parsed = _parseFlashcards(data['flashcards']);
+        setState(() => _cards = parsed.isNotEmpty ? parsed : [{'front': 'No flashcards generated', 'back': 'Please try again'}]);
+      } else {
+        setState(() => _cards = [{'front': 'Server error ${response.statusCode}', 'back': response.body}]);
       }
-    } catch (_) {
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _cards = [{'front': 'Error', 'back': e.toString()}]);
     } finally {
+      if (!mounted) return;
       setState(() => _loading = false);
     }
   }

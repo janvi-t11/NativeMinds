@@ -81,6 +81,7 @@ Question: {question}"""
 
 @app.post("/ask")
 async def ask_tutor(request: QuestionRequest):
+    import traceback
     cultural_context = CULTURAL_CONTEXTS.get(request.language.lower(), {}).get(request.subject.lower(), "Use locally relevant examples")
     grade_approach = {
         1: "Use very simple one-line sentences. Use toys, animals, and home examples. No complex words.",
@@ -96,11 +97,12 @@ async def ask_tutor(request: QuestionRequest):
     # Build conversation history as plain text injected into the prompt
     history_text = ""
     if request.history:
-        history_text = "\n\nConversation so far:\n"
+        parts = ["\n\nConversation so far:\n"]
         for msg in request.history:
             role_label = "Tutor" if msg.role == "assistant" else "Student"
-            history_text += f"{role_label}: {msg.content}\n"
-        history_text += "\n"
+            parts.append(f"{role_label}: {sanitize(msg.content)}\n")
+        parts.append("\n")
+        history_text = "".join(parts)
 
     prompt = f"""You are a friendly school tutor for grade {request.grade} students. Respond ONLY in {request.language}. Only help with school subjects (math, science, history, geography, english).
 
@@ -113,12 +115,17 @@ Student's latest message: {sanitize(request.question)}
 
 Tutor:"""
 
-    response = ollama.chat(
-        model="gemma4:e2b",
-        messages=[{"role": "user", "content": prompt}],
-        options={"num_predict": 800}
-    )
-    return {"answer": response["message"]["content"], "language": request.language, "subject": request.subject}
+    try:
+        response = ollama.chat(
+            model="gemma4:e4b",
+            messages=[{"role": "user", "content": prompt}],
+            options={"num_predict": 1200}
+        )
+        return {"answer": response.message.content, "language": request.language, "subject": request.subject}
+    except Exception as e:
+        traceback.print_exc()
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/ask-image")
 async def ask_with_image(
@@ -132,11 +139,11 @@ async def ask_with_image(
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
     prompt = build_prompt(sanitize(question), sanitize(language), sanitize(subject), grade, is_image=True)
     response = ollama.chat(
-        model="gemma4:e2b",
+        model="gemma4:e4b",
         messages=[{"role": "user", "content": prompt, "images": [image_base64]}],
         options={"num_predict": 800}
     )
-    return {"answer": response["message"]["content"], "language": language, "subject": subject}
+    return {"answer": response.message.content, "language": language, "subject": subject}
 
 @app.post("/quiz")
 async def generate_quiz(request: QuestionRequest):
@@ -183,11 +190,11 @@ Answer: [correct letter]
 Use cultural examples from {sanitize(request.language)} speaking regions."""
 
     response = ollama.chat(
-        model="gemma4:e2b",
+        model="gemma4:e4b",
         messages=[{"role": "user", "content": prompt}],
         options={"num_predict": 700}
     )
-    return {"quiz": response["message"]["content"], "language": request.language}
+    return {"quiz": response.message.content, "language": request.language}
 
 @app.post("/lesson-of-day")
 async def lesson_of_day(request: QuestionRequest):
@@ -204,40 +211,38 @@ Rules:
 - NEVER exceed 6 lines"""
 
     response = ollama.chat(
-        model="gemma4:e2b",
+        model="gemma4:e4b",
         messages=[{"role": "user", "content": prompt}],
         options={"num_predict": 200}
     )
-    return {"lesson": response["message"]["content"], "subject": request.subject}
+    return {"lesson": response.message.content, "subject": request.subject}
 
 @app.post("/flashcards")
 async def generate_flashcards(request: QuestionRequest):
     prompt = f"""Generate exactly 5 flashcards for a grade {request.grade} student on subject: {sanitize(request.subject)} in {sanitize(request.language)} language.
 
-Format EXACTLY like this:
-FRONT: [short question or term]
-BACK: [short answer, max 2 lines]
+Format EXACTLY like this (no extra text):
+FRONT: [term or question]
+BACK: [answer, 1 line only]
 
-FRONT: [short question or term]
-BACK: [short answer, max 2 lines]
+FRONT: [term or question]
+BACK: [answer, 1 line only]
 
-FRONT: [short question or term]
-BACK: [short answer, max 2 lines]
+FRONT: [term or question]
+BACK: [answer, 1 line only]
 
-FRONT: [short question or term]
-BACK: [short answer, max 2 lines]
+FRONT: [term or question]
+BACK: [answer, 1 line only]
 
-FRONT: [short question or term]
-BACK: [short answer, max 2 lines]
-
-Use simple language for grade {request.grade}. Use examples from {sanitize(request.language)} speaking regions."""
+FRONT: [term or question]
+BACK: [answer, 1 line only]"""
 
     response = ollama.chat(
-        model="gemma4:e2b",
+        model="gemma4:e4b",
         messages=[{"role": "user", "content": prompt}],
-        options={"num_predict": 400}
+        options={"num_predict": 350}
     )
-    return {"flashcards": response["message"]["content"]}
+    return {"flashcards": response.message.content}
 
 @app.post("/hint")
 async def get_hint(request: QuestionRequest):
@@ -248,11 +253,11 @@ Do NOT give the answer. Just nudge them in the right direction.
 Use simple words a child understands."""
 
     response = ollama.chat(
-        model="gemma4:e2b",
+        model="gemma4:e4b",
         messages=[{"role": "user", "content": prompt}],
         options={"num_predict": 60}
     )
-    return {"hint": response["message"]["content"]}
+    return {"hint": response.message.content}
 
 @app.post("/explain")
 async def explain_answer(request: QuestionRequest):
@@ -264,12 +269,12 @@ Give a very short and simple explanation (2-3 lines max) in {sanitize(request.la
 Use simple words a child can understand. Be encouraging, not discouraging."""
 
     response = ollama.chat(
-        model="gemma4:e2b",
+        model="gemma4:e4b",
         messages=[{"role": "user", "content": prompt}],
         options={"num_predict": 128}
     )
-    return {"explanation": response["message"]["content"]}
+    return {"explanation": response.message.content}
 
 @app.get("/health")
 async def health():
-    return {"status": "NativeMinds AI is running!", "model": "gemma4:e2b"}
+    return {"status": "NativeMinds AI is running!", "model": "gemma4:e4b"}
